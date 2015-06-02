@@ -20,50 +20,57 @@
 # KMG           12/18/2014 Added Topology and geometric network tools, general cleanup        
 # KMG            1/7/2015 general edit checking and cleanup
 # DAT            2015-04-27 Added the ability to use parameters from an ArcGIS Script Tool Interface.
-# DAT            2015-05-05 TODO: Fix the error where KDOT_ROUTNAME is not populating correctly.
-# DAT            2015-05-05 I feel like I've recently fixed this error before. Check other scripts for solutions.
+# DAT            2015-05-05 TODONE: Fixed the error where KDOT_ROUTNAME was not populating correctly.
 # DAT            2015-05-05 -- Offset Script should be using I/U/K sorting, look there
-################    UpdateKdotNameInCenterline, compareRouteNames are the functions to look at from Offset Script.
+# DAT            UpdateKdotNameInCenterline, compareRouteNames are the functions to look at from Offset Script.
 # DAT            2015-05-05 -- Numdex Function should be using the rest of what we need.
 # DAT            2015-05-05 -- Just need to use the part for state routes.
+# DAT            2015-05-28 -- Removed NG911_Config import, replaced with InitalizeCurrentPathSettings() function.
 #-------------------------------------------------------------------------------
 
-try:
-    from NG911_Config import currentPathSettings
-except:
-    "Go ahead, debug this in ArcMap... but you will have to copy and paste the NG911_Config file first"
 import re
 """functions that add several administrative fields and calculate coded values for a NG911 attribute based LRS_Key field"""
 import os
 
 from arcpy import (
-    env, 
-    MakeFeatureLayer_management,
-    Sort_management,
-    Exists,
-    GetMessages,
-    FeatureClassToFeatureClass_conversion,
-    SelectLayerByLocation_management,
-    DisableEditorTracking_management,
-    ListDatasets,
-    Copy_management, 
-    CalculateField_management as CalcField,
-    MakeTableView_management as TableView,
-    AddJoin_management as JoinTbl,
-    RemoveJoin_management as removeJoin,
+    AddFeatureClassToTopology_management,
     AddField_management as addField,
     AddIndex_management as AddIndex,
-    Delete_management as Delete,
-    SelectLayerByAttribute_management,
-    Describe,
-    GetParameterAsText,
+    AddJoin_management as JoinTbl,
+    AddRuleToTopology_management,
     AddMessage,
+    CalculateField_management as CalcField,
+    Copy_management,
+    CreateGeometricNetwork_management,
+    Delete_management,
+    Describe,
+    DetectFeatureChanges_management,
+    DisableEditorTracking_management,
+    Dissolve_management as Dissolve,
+    env,
+    Exists,
+    FeatureClassToFeatureClass_conversion,
+    FindDisconnectedFeaturesInGeometricNetwork_management,
+    GenerateRubbersheetLinks_edit,
+    GetMessages,
+    GetParameterAsText,
+    ListDatasets,
+    MakeFeatureLayer_management,
+    MakeTableView_management as TableView,
+    RemoveFeatureClassFromTopology_management,
+    RemoveJoin_management as removeJoin,
+    RubbersheetFeatures_edit,
+    SelectLayerByAttribute_management,
+    SelectLayerByLocation_management,
     SetProgressor,
     SetProgressorLabel,
-    SetProgressorPosition)
+    SetProgressorPosition,
+    Sort_management,
+    TransferAttributes_edit,
+    VerifyAndRepairGeometricNetworkConnectivity_management)
 
 from arcpy.da import (
-    SearchCursor as daSearchCursor,    UpdateCursor as daUpdateCursor,    Editor as daEditor)  # @UnresolvedImport
+    SearchCursor as daSearchCursor, UpdateCursor as daUpdateCursor, Editor as daEditor)  # @UnresolvedImport
 
 env.overwriteOutput = 1
 
@@ -80,6 +87,30 @@ charsubs = {'B': '1', 'F': '1', 'P': '1', 'V': '1',
             'D': '3', 'T': '3', 'L': '4', 'M': '5',
             'N': '5', 'R': '6', '.':''}
 
+
+def InitalizeCurrentPathSettings():
+    gdb = r'C:\GIS\Geodatabases\Region1_BA_Final.gdb'
+    DOTRoads = r"\\gisdata\arcgis\GISdata\DASC\NG911\KDOTReview\KDOT_Roads.gdb"
+    
+    # These soundexNameExclusions entries are already checked for a space immediately following them.
+    # There is no need to add a trailing space as in "RD ". Use "RD" instead.
+    # Also, this means that "CR" will only be matched to road names like "CR 2500",
+    # it will not be matched to road names like "CRAFT".
+    soundexNameExclusions = ["ROAD", "US HIGHWAY", "RD", "CO RD", "CR", "RS", "R", "STATE HIGHWAY", "STATE ROAD", "BUSINESS US HIGHWAY"]
+    ordinalNumberEndings = ["ST", "ND", "RD", "TH"]
+    
+    # This is a class used to pass information to other functions.
+    class pathInformationClass:
+        def __init__(self):
+            self.gdbPath = gdb
+            self.addressPointsPath = ""
+            self.DOTRoadsPath = DOTRoads
+            self.ordinalEndings = ordinalNumberEndings
+            self.soundexExclusions = soundexNameExclusions
+    
+    pathSettingsInstance = pathInformationClass()
+    
+    return pathSettingsInstance
 
 def UpdateOptionsWithParameters(optionsObject):
     try:
@@ -175,11 +206,6 @@ def numdex(s):
 
 def StreetNetworkCheck():
     """removes street centerlines from the topology and creates geometric network, then checks geometric network connectivity"""
-    from arcpy import (
-                       VerifyAndRepairGeometricNetworkConnectivity_management, 
-                       RemoveFeatureClassFromTopology_management, 
-                       CreateGeometricNetwork_management, 
-                       FindDisconnectedFeaturesInGeometricNetwork_management)
     print gdb
     env.workspace= gdb
     fd =  ListDatasets("*", "Feature")
@@ -204,11 +230,7 @@ def StreetNetworkCheck():
 
 def ReturnStreetstoTopology():
     AddMessage("Returning streets to the topology dataset.")
-    from arcpy import (AddFeatureClassToTopology_management, 
-                       AddRuleToTopology_management, 
-                       Delete_management,
-                       )
-    env.workspace =currentPathSettings.gdbPath
+    env.workspace = currentPathSettings.gdbPath
     fd =  ListDatasets("*", "Feature")
     gdbw = os.path.join(currentPathSettings.gdbPath, fd[0])
     env.workspace = gdbw
@@ -291,7 +313,6 @@ def ConflateKDOTrestart():
 def ConflateKDOT():
     """detects road centerline changes and transfers the HPMS key field from the KDOT roads via ESRI conflation tools"""
     AddMessage("Detecting road centerline changes.")
-    from arcpy import TransferAttributes_edit, DetectFeatureChanges_management, GenerateRubbersheetLinks_edit, RubbersheetFeatures_edit
     spatialtolerance = "20 feet"
     MakeFeatureLayer_management(DOTRoads+"\\KDOT_HPMS_2012","KDOT_Roads","#","#","#")
     MakeFeatureLayer_management(gdb+"\\RoadCenterline","RoadCenterline","#","#","#")  #this may already exist so check, and use FD
@@ -780,7 +801,7 @@ def HighwayCalc():
     """Pull out State Highways to preserve KDOT LRS Key (CANSYS FORMAT - non directional CRAD) for the KDOT primary route"""
     AddMessage("Restoring KDOT Highway LRS Keys.")
     if Exists(gdb+"\\RoadAlias_Sort"):
-        Delete(gdb+"\\RoadAlias_Sort")
+        Delete_management(gdb+"\\RoadAlias_Sort")
     else:
         pass
     Sort_management(Alias,gdb+"\\RoadAlias_Sort","KDOT_CODE ASCENDING;KDOT_ROUTENAME ASCENDING","UR")
@@ -803,12 +824,11 @@ def HighwayCalc():
 def LRS_Tester():
     """makes the LRS route layer and dissolves the NG911 fields to LRS event tables"""
     AddMessage("Testing LRS routes.")
-    from arcpy import Dissolve_management as dissolve
     CalcField(lyr, "LRSKEY", "str(!KDOT_COUNTY_R!)+str(!KDOT_COUNTY_L!)+str(!KDOT_CITY_R!)+str(!KDOT_CITY_L!)+str(!PreCode!) + !Soundex! + str(!SuffCode!)+str(!UniqueNo!)+str(!TDirCode!)","PYTHON_9.3","#")
     CalcField(lyr, "RID", "str(!KDOT_COUNTY_R!)+str(!KDOT_COUNTY_L!)+str(!KDOT_CITY_R!)+str(!KDOT_CITY_L!)+str(!PreCode!) + !Soundex! + str(!SuffCode!)+str(!UniqueNo!)+str(!TDirCode!)","PYTHON_9.3","#")
     env.overwriteOutput = 1
-    dissolve(lyr,gdb+"\\NG911\\RCLD1","LRSKEY","SEGID COUNT;L_F_ADD MIN;L_T_ADD MAX;L_F_ADD RANGE;L_T_ADD RANGE;SHAPE_MILES SUM","MULTI_PART","DISSOLVE_LINES")
-    dissolve(lyr,gdb+"\\NG911\\RCLD2","LRSKEY","SEGID COUNT;L_F_ADD MIN;L_T_ADD MAX;L_F_ADD RANGE;L_T_ADD RANGE;SHAPE_MILES SUM","MULTI_PART","UNSPLIT_LINES")
+    Dissolve(lyr,gdb+"\\NG911\\RCLD1","LRSKEY","SEGID COUNT;L_F_ADD MIN;L_T_ADD MAX;L_F_ADD RANGE;L_T_ADD RANGE;SHAPE_MILES SUM","MULTI_PART","DISSOLVE_LINES")
+    Dissolve(lyr,gdb+"\\NG911\\RCLD2","LRSKEY","SEGID COUNT;L_F_ADD MIN;L_T_ADD MAX;L_F_ADD RANGE;L_T_ADD RANGE;SHAPE_MILES SUM","MULTI_PART","UNSPLIT_LINES")
 
     #MakeRouteLayer_na()
     #This whole script started out with a goal of creating an LRS layer for NG911 field event reference, and now is set up to faciliate that
@@ -822,7 +842,6 @@ def createUniqueIdentifier():
     workspaceLocation = gdb
     #MakeFeatureLayer_management(lyr,"RCL_Particles",where_clause="COUNTY_L = COUNTY_R AND STATE_L = STATE_R AND ( L_F_ADD =0 OR L_T_ADD =0 OR R_F_ADD =0 OR R_T_ADD =0)")
     featureClassName = lyr
-    #from arcpy.da import SearchCursor as daSearchCursor, UpdateCursor as daUpdateCursor, Editor as daEditor
     alphabetListForConversion = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
     newCursor = daSearchCursor(featureClassName, uniqueIdInFields)
     searchList = list()
@@ -926,7 +945,8 @@ def createUniqueIdentifier():
         pass
 
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
+    currentPathSettings = InitalizeCurrentPathSettings()
     currentPathSettings = UpdateOptionsWithParameters(currentPathSettings)
     
     ###############################################################################################
@@ -946,7 +966,7 @@ if __name__ == '__main__':
     gdb = os.path.join(Originalgdbpath, Originalgdbbasename) + "_RoadChecks." + Originalgdbexts
     print gdb
     if Exists(gdb):
-        Delete(gdb)
+        Delete_management(gdb)
     Copy_management(Originalgdb, gdb)# Creates a copy of the original gdb
     
     env.workspace = gdb

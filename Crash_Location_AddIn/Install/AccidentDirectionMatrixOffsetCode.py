@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # AccidentDirectionMatrixOffsetCode.py
+# Author: DAT
 # Created: 2015-02-02
 # Updated: 2015-05-20
-# 
 ################################################################################################
 
 #    TODO:DONE: Integrate progressor or other output messages that will give

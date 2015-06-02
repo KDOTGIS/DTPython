@@ -1,16 +1,13 @@
 '''
 Created on Feb 10, 2015
 @author: kyleg
-DAT - 2015-04-24 Changed gdb target  for testing.
+DAT - 2015-04-24 Changed gdb target for testing.
 DAT - 2015-05-07 Modified to work with ArcMap Parameter input.
 DAT - 2015-05-11 Modified to accept Locator Name and choice of KDOT/Non-KDOT fields.
-# //TODO: Test with KDOT/Non-KDOT field choices for full code paths.
+//TODO: Test with KDOT/Non-KDOT field choices for full code paths.
+DAT - 2015-05-28 -- Removed NG911_Config import, replaced with InitalizeCurrentPathSettings() function.
 '''
 
-try:
-    from NG911_Config import currentPathSettings
-except:
-    "Go ahead, debug this in ArcMap... but you will have to copy and paste the NG911_Config file first"
 import os
 import re
 from arcpy import (CreateAddressLocator_geocoding, Describe, Delete_management, env, Exists, GetParameterAsText)
@@ -22,6 +19,30 @@ from xml.etree.ElementTree import Element, SubElement, parse
 Roads = "RoadCenterline"
 Alias = "RoadAlias"
 
+
+def InitalizeCurrentPathSettings():
+    gdb = r'C:\GIS\Geodatabases\Region1_BA_Final.gdb'
+    DOTRoads = r"\\gisdata\arcgis\GISdata\DASC\NG911\KDOTReview\KDOT_Roads.gdb"
+    
+    # These soundexNameExclusions entries are already checked for a space immediately following them.
+    # There is no need to add a trailing space as in "RD ". Use "RD" instead.
+    # Also, this means that "CR" will only be matched to road names like "CR 2500",
+    # it will not be matched to road names like "CRAFT".
+    soundexNameExclusions = ["ROAD", "US HIGHWAY", "RD", "CO RD", "CR", "RS", "R", "STATE HIGHWAY", "STATE ROAD", "BUSINESS US HIGHWAY"]
+    ordinalNumberEndings = ["ST", "ND", "RD", "TH"]
+    
+    # This is a class used to pass information to other functions.
+    class pathInformationClass:
+        def __init__(self):
+            self.gdbPath = gdb
+            self.addressPointsPath = ""
+            self.DOTRoadsPath = DOTRoads
+            self.ordinalEndings = ordinalNumberEndings
+            self.soundexExclusions = soundexNameExclusions
+    
+    pathSettingsInstance = pathInformationClass()
+    
+    return pathSettingsInstance
 
 def UpdateOptionsWithParameters(optionsObject):
     try:
@@ -292,6 +313,7 @@ def CreateCrashLocator_OLD(gdb):
 
 
 if __name__ == '__main__':
+    currentPathSettings = InitalizeCurrentPathSettings()
     currentPathSettings = UpdateOptionsWithParameters(currentPathSettings)
     
     CreateCrashLocator(currentPathSettings)

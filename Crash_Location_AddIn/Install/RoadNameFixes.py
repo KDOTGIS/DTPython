@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # RoadNameFixes.py
 # Adapted from scripts created 2014-05-22
+# Author: DAT
 # Created: 2015-05-14
 # Updated: 2015-05-15
 ################################################################################################
@@ -18,7 +19,7 @@ class optionsHolder():  # Defines an empty class to hold assigned attributes.
 
 optionsInstance = optionsHolder() # Creates an instance of the empty class.
 
-optionsInstance.roadsFeaturesLocation = r'C:\GIS\Geodatabases\Region1_BA_Final_RoadChecks.gdb\NG911\RoadCenterline'
+optionsInstance.roadsFeaturesLocation = r'C:\GIS\Geodatabases\Region1_CL_Final_RoadChecks.gdb\NG911\RoadCenterline'
 optionsInstance.accidentDataTable = r'C:\GIS\Geodatabases\GC_OFFSET_20150210_TEST.gdb\BARBER_004_Test_3'
 optionsInstance.useKDOTFields = False
 ## GDB Location should be derived from accidentDataWithOffsetOutput location.
@@ -39,6 +40,8 @@ def UpdateOptionsWithParameters(optionsObject):
     try:
         option0 = GetParameterAsText(0)
         option1 = GetParameterAsText(1)
+        #option2 = GetParameterAsText(2) -- Not sure what these options were supposed to be for.
+        #option3 = GetParameterAsText(3) -- Not sure what these options were supposed to be for.
     except:
         pass
     
@@ -52,6 +55,18 @@ def UpdateOptionsWithParameters(optionsObject):
     else:
         pass
     
+    '''
+    if (option2 is not None and option2 != ""): # Base Accident Data Table (accidentDataTable)
+        optionsObject.accidentDataTable = option2
+    else:
+        pass
+    
+    if (option3 is not None and option3 != ""): # Base Accident Data Table (accidentDataTable)
+        optionsObject.accidentDataTable = option3
+    else:
+        pass
+    '''
+   
     optionsInstance.gdbPath = getGDBLocationFromFC(optionsObject.roadsFeaturesLocation)
     
     return optionsObject
@@ -129,10 +144,10 @@ def CreateUniqueRoadNameTable(optionsObject):
             pass
         
         # Print the first and last item in the roadList.
-        print "roadList first item:"
-        print str(roadList[0])
-        print "roadList last item:"
-        print str(roadList[-1])
+        AddMessage("roadList first item:")
+        AddMessage(str(roadList[0]))
+        AddMessage("roadList last item:")
+        AddMessage(str(roadList[-1]))
         
         print ""
         
@@ -174,7 +189,7 @@ def CreateUniqueRoadNameTable(optionsObject):
         except:
             pass
     
-    # Even if the program has an exception, it should still delete the row and cursor objects.
+    # Even if the program has an exception, it should still delete the cursor objects.
     finally:
         try:
             del sCursor
@@ -224,7 +239,7 @@ def RoadNameRepair(optionsObject):
         accidentData = optionsObject.accidentDataTable 
         
         if optionsInstance.useKDOTFields == True:
-            print 'Using KDOT Fields.'
+            AddMessage('Using KDOT Fields.')
             accidentCursorFields = ["ESRI_OID", "COUNTY_NBR", "ON_ROAD_KDOT_NAME", "ON_ROAD_KDOT_TYPE", "ON_ROAD_KDOT_SFX_DIR",
                                     "AT_ROAD_KDOT_NAME", "AT_ROAD_KDOT_TYPE", "AT_ROAD_KDOT_SFX_DIR", "ON_AT_ROAD_KDOT_INTERSECT",
                                     "ACCIDENT_KEY"]
@@ -590,8 +605,8 @@ def RoadNameRepair(optionsObject):
                                 noSpacesRoadName = str(roadNamesItem[0]).replace(' ', '')
                                 orMatch = fifthMatchString.match(noSpacesRoadName)
                                 if (orMatch != None):
-                                    print "Old on road name was:", str(accListItem[2])
-                                    print "New on road name should be:", str(roadNamesItem[0]).upper()
+                                    AddMessage("Old on road name was: " + str(accListItem[2]))
+                                    AddMessage("New on road name will be corrected to: " + str(roadNamesItem[0]).upper())
                                     accListItem[2] = str(roadNamesItem[0]).upper()
                                 else:
                                     pass
@@ -663,8 +678,8 @@ def RoadNameRepair(optionsObject):
                                 noSpacesRoadName = str(roadNamesItem[0]).replace(' ', '')
                                 atMatch = sixthMatchString.match(noSpacesRoadName)
                                 if (atMatch != None):
-                                    print "Old at road name was:", str(accListItem[5])
-                                    print "New at road name should be:", str(roadNamesItem[0]).upper()
+                                    AddMessage("Old at road name was: " + str(accListItem[5]))
+                                    AddMessage("New at road name will be corrected to: " + str(roadNamesItem[0]).upper())
                                     accListItem[5] = str(roadNamesItem[0]).upper()
                                 else:
                                     pass
@@ -802,8 +817,6 @@ def RoadNameRepair(optionsObject):
 if __name__ == "__main__":
     optionsInstance = UpdateOptionsWithParameters(optionsInstance)
     CreateUniqueRoadNameTable(optionsInstance)
-    # Road Name Inflator function should be renamed to
-    # Road Name Repair function.
     # Successfully matches 5 character names to
     # multi-word names where the 6th character is
     # a space. -- Might need more work to get the
@@ -824,5 +837,6 @@ if __name__ == "__main__":
     # and then run the RoadNameRepair function again.
     optionsInstance.useKDOTFields = True
     RoadNameRepair(optionsInstance)
+    AddMessage("Road Name Fixes complete.")
 else:
     pass

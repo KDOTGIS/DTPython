@@ -1,4 +1,3 @@
-import arcpy
 import pythonaddins
 import time
 import os

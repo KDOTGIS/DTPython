@@ -55,18 +55,6 @@ def UpdateOptionsWithParameters(optionsObject):
     else:
         pass
     
-    '''
-    if (option2 is not None and option2 != ""): # Base Accident Data Table (accidentDataTable)
-        optionsObject.accidentDataTable = option2
-    else:
-        pass
-    
-    if (option3 is not None and option3 != ""): # Base Accident Data Table (accidentDataTable)
-        optionsObject.accidentDataTable = option3
-    else:
-        pass
-    '''
-   
     optionsInstance.gdbPath = getGDBLocationFromFC(optionsObject.roadsFeaturesLocation)
     
     return optionsObject

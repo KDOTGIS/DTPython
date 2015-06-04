@@ -61,13 +61,13 @@ from multiprocessing import Process, Manager
 
 import datetime
 
-mapsDirectory = r"\\gis\Planning\Cart\Maps\MXD\2014_Update"
+mapsDirectory = r"\\gisdata\Planning\Cart\Maps\MXD\2014_Update"
 env.workspace = mapsDirectory
 
 # Look at changing this this to a local disk location and then copy from that location to
 # the F drive location after the subprocesses have completed.
 
-outputDirectory = r"\\gis\Planning\Cart\Maps\MXD\2014_Update"
+outputDirectory = r"\\gisdata\Planning\Cart\Maps\MXD\2014_Update"
 
 exportPDFs = 0
 exportPNGs = 1

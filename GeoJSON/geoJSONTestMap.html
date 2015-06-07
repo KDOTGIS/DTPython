@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Leaflet GeoJSON Example</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
+  <style type="text/css">
+  body {  padding: 0; margin: 0;  }
+  html, body, #test-map {  height: 100%;  }
+  </style>
+  
+  <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
+  <script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+
+</head>
+<body>
+	<div id="map" style="width: 600px; height: 400px"></div>
+
+	<script>
+		var map = L.map('map').setView([38.5, -98], 5);
+        
+		// Remember to use your own tile service for production maps.
+        var aTileLayer = L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+				'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+				'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+			id: 'examples.map-20v6611k'
+		});
+        
+        map.addLayer(aTileLayer);
+		
+		var geoJSONLocation1 = "./pointTestKSNorth.json"
+		var geoJSONLocation2 = "./lineTestKSSouth.json"
+		var geoJSONLocation3 = "./polygonTestNAD1983.json"
+		
+		// I'm not really a fan of the default point markers.
+		// So I made some new ones! -- DT
+		var pointGeojsonMarkerOptions = {
+			radius: 4,
+			fillColor: "#0e83f2",
+			color: "#000",
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 0.7
+		};
+		
+		var lineStyle = {
+			"color": "#230680"
+		};
+		
+		var polygonStyle = {
+			"color": "#f42b2b"
+		};
+		
+		// Add the layers to the map using async callback functions.
+		$.ajax({
+          type: "POST",
+          url: geoJSONLocation1,
+          dataType: 'json',
+          success: function (response) {
+              geojsonLayer1 = L.geoJson(response, {
+				pointToLayer: function (feature, latlng) {
+					return L.circleMarker(latlng, pointGeojsonMarkerOptions);
+				}
+              }).addTo(map);
+              console.log("Success");
+              console.log(response);
+          }
+        });
+		
+		$.ajax({
+          type: "POST",
+          url: geoJSONLocation2,
+          dataType: 'json',
+          success: function (response) {
+              geojsonLayer2 = L.geoJson(response, {
+                style: lineStyle
+			  }).addTo(map);
+              console.log("Success");
+              console.log(response);
+          }
+        });
+		
+		$.ajax({
+          type: "POST",
+          url: geoJSONLocation3,
+          dataType: 'json',
+          success: function (response) {
+              geojsonLayer3 = L.geoJson(response, {
+                style: polygonStyle
+			  }).addTo(map);
+              console.log("Success");
+              console.log(response);
+          }
+        });
+		
+		// Lastly, please keep in mind that just
+		// using geoJSON by itself is not a panacea
+		// for performance issues.
+		// It can make it easier to implement fixes
+		// for performance issues, but it is not a
+		// performance fix on its own.
+    
+	</script>
+	
+</body>
+</html>

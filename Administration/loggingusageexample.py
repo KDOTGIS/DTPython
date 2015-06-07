@@ -6,6 +6,7 @@
 import datetime
 import sys
 from arcpy import env, GetMessages, ListFeatureClasses, ListFields
+# Script_Failure & Script_Success are constants, hence the full capitalization.
 from supportfunctions import FindDuration, SCRIPT_FAILURE, SCRIPT_SUCCESS, ScriptStatusLogging  # @UnresolvedImport
 
 
